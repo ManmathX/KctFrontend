@@ -84,7 +84,7 @@ import './index.css';
 const STORE_KEY = 'kcet_2025_predictor_shortlist_react';
 const PROFILE_KEY = 'kcet_2025_predictor_google_profile';
 const ALL_PROFILES_KEY = 'kcet_2025_predictor_all_profiles';
-const GOOGLE_CLIENT_ID = '744665379186-89t2htuu9d77m6ltlvfabq1v6rardjmq.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const GOOGLE_NONCE_KEY = 'kcet_2025_google_nonce';
 const DISPLAY_STEP = 80;
 
@@ -1592,6 +1592,23 @@ export default function App() {
     }
   }, [profile]);
 
+  const googleInitializedRef = useRef(false);
+
+  useEffect(() => {
+    if (googleInitializedRef.current) return;
+    const googleIdentity = window.google?.accounts?.id;
+    if (!googleIdentity) return;
+    const nonce = createGoogleNonce();
+    sessionStorage.setItem(GOOGLE_NONCE_KEY, nonce);
+    googleIdentity.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleCredential,
+      nonce,
+      use_fedcm_for_prompt: false,
+    });
+    googleInitializedRef.current = true;
+  }, [handleGoogleCredential]);
+
   const handleGoogleCredential = useCallback((credentialResponse) => {
     try {
       const credential = credentialResponse?.credential;
@@ -1657,17 +1674,21 @@ export default function App() {
       return;
     }
 
-    const nonce = createGoogleNonce();
-    sessionStorage.setItem(GOOGLE_NONCE_KEY, nonce);
+    // Re-initialize if not yet done (e.g. GSI script loaded late)
+    if (!googleInitializedRef.current) {
+      const nonce = createGoogleNonce();
+      sessionStorage.setItem(GOOGLE_NONCE_KEY, nonce);
+      googleIdentity.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleCredential,
+        nonce,
+        use_fedcm_for_prompt: false,
+      });
+      googleInitializedRef.current = true;
+    }
 
     setAuthError('');
     setAuthMessage('Opening Google sign-in...');
-    googleIdentity.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: handleGoogleCredential,
-      nonce,
-      use_fedcm_for_prompt: false,
-    });
     googleIdentity.prompt();
   }, [handleGoogleCredential]);
 
