@@ -1592,23 +1592,6 @@ export default function App() {
     }
   }, [profile]);
 
-  const googleInitializedRef = useRef(false);
-
-  useEffect(() => {
-    if (googleInitializedRef.current) return;
-    const googleIdentity = window.google?.accounts?.id;
-    if (!googleIdentity) return;
-    const nonce = createGoogleNonce();
-    sessionStorage.setItem(GOOGLE_NONCE_KEY, nonce);
-    googleIdentity.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: handleGoogleCredential,
-      nonce,
-      use_fedcm_for_prompt: false,
-    });
-    googleInitializedRef.current = true;
-  }, [handleGoogleCredential]);
-
   const handleGoogleCredential = useCallback((credentialResponse) => {
     try {
       const credential = credentialResponse?.credential;
@@ -1665,6 +1648,23 @@ export default function App() {
       sessionStorage.removeItem(GOOGLE_NONCE_KEY);
     }
   }, []);
+
+  const googleInitializedRef = useRef(false);
+
+  useEffect(() => {
+    if (googleInitializedRef.current) return;
+    const googleIdentity = window.google?.accounts?.id;
+    if (!googleIdentity) return;
+    const nonce = createGoogleNonce();
+    sessionStorage.setItem(GOOGLE_NONCE_KEY, nonce);
+    googleIdentity.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleCredential,
+      nonce,
+      use_fedcm_for_prompt: false,
+    });
+    googleInitializedRef.current = true;
+  }, [handleGoogleCredential]);
 
   const handleGoogleSignIn = useCallback(() => {
     const googleIdentity = window.google?.accounts?.id;
