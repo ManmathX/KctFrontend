@@ -1,0 +1,11 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+Disallow: /src/
+Disallow: /node_modules/
+
+# Sitemap
+Sitemap: https://collegecutoff.in/sitemap.xml
+
+# Crawl-delay (optional, respected by some bots)
+Crawl-delay: 1

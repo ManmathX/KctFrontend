@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Database Connection Test</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .card {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1 { color: #6366f1; margin-top: 0; }
+    button {
+      padding: 12px 24px;
+      background: #6366f1;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px 5px 10px 0;
+    }
+    button:hover { background: #4f46e5; }
+    button:disabled { background: #9ca3af; cursor: not-allowed; }
+    .status {
+      padding: 15px;
+      border-radius: 6px;
+      margin: 20px 0;
+      font-weight: 500;
+    }
+    .success { background: #d1fae5; color: #065f46; border-left: 4px solid #10b981; }
+    .error { background: #fee2e2; color: #991b1b; border-left: 4px solid #ef4444; }
+    .info { background: #dbeafe; color: #1e40af; border-left: 4px solid #3b82f6; }
+    .loading { background: #fef3c7; color: #92400e; border-left: 4px solid #f59e0b; }
+    pre {
+      background: #f3f4f6;
+      padding: 15px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 12px;
+    }
+    .step {
+      margin: 15px 0;
+      padding: 15px;
+      background: #f9fafb;
+      border-radius: 6px;
+      border-left: 3px solid #6366f1;
+    }
+    .step-number {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      background: #6366f1;
+      color: white;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 24px;
+      margin-right: 10px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>\ud83d\udd0c Database Connection Test</h1>
+    
+    <div class="info">
+      <strong>Purpose:</strong> This page tests your Turso database connection and setup.
+    </div>
+
+    <div class="step">
+      <span class="step-number">1</span>
+      <strong>Enter your Turso auth token below</strong>
+    </div>
+
+    <input 
+      type="password" 
+      id="tokenInput" 
+      placeholder="Enter Turso auth token" 
+      style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 15px; font-size: 14px;"
+    >
+
+    <div class="step">
+      <span class="step-number">2</span>
+      <strong>Run tests</strong>
+    </div>
+
+    <button onclick="testConnection()">Test Connection</button>
+    <button onclick="testTableCreation()">Test Table Creation</button>
+    <button onclick="testInsert()">Test Insert</button>
+    <button onclick="testQuery()">Test Query</button>
+    <button onclick="runAllTests()">Run All Tests</button>
+
+    <div id="status"></div>
+    <div id="results"></div>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@libsql/client@0.5.6';
+
+    let db = null;
+
+    function showStatus(message, type = 'info') {
+      const statusDiv = document.getElementById('status');
+      statusDiv.innerHTML = `<div class="${type}">${message}</div>`;
+    }
+
+    function showResults(title, data) {
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML += `
+        <h3>${title}</h3>
+        <pre>${JSON.stringify(data, null, 2)}</pre>
+      `;
+    }
+
+    function getToken() {
+      const token = document.getElementById('tokenInput').value.trim();
+      if (!token) {
+        showStatus('\u26a0\ufe0f Please enter your Turso auth token', 'error');
+        return null;
+      }
+      return token;
+    }
+
+    window.testConnection = async function() {
+      const token = getToken();
+      if (!token) return;
+
+      showStatus('\ud83d\udd04 Testing connection...', 'loading');
+      document.getElementById('results').innerHTML = '';
+
+      try {
+        db = createClient({
+          url: 'libsql://manmath-mohanty-manmathx.aws-ap-south-1.turso.io',
+          authToken: token
+        });
+
+        const result = await db.execute('SELECT 1 as test');
+        showStatus('\u2705 Connection successful!', 'success');
+        showResults('Connection Test Result', result);
+      } catch (error) {
+        showStatus(`\u274c Connection failed: ${error.message}`, 'error');
+        showResults('Error Details', { error: error.message, stack: error.stack });
+      }
+    };
+
+    window.testTableCreation = async function() {
+      const token = getToken();
+      if (!token) return;
+
+      if (!db) {
+        db = createClient({
+          url: 'libsql://manmath-mohanty-manmathx.aws-ap-south-1.turso.io',
+          authToken: token
+        });
+      }
+
+      showStatus('\ud83d\udd04 Creating table...', 'loading');
+
+      try {
+        await db.execute(`
+          CREATE TABLE IF NOT EXISTS colleges (
+            college_code TEXT PRIMARY KEY,
+            college_name TEXT NOT NULL,
+            location TEXT,
+            city TEXT,
+            description TEXT,
+            photo_url TEXT,
+            website TEXT,
+            established_year INTEGER,
+            affiliation TEXT
+          )
+        `);
+        showStatus('\u2705 Table created successfully!', 'success');
+      } catch (error) {
+        showStatus(`\u274c Table creation failed: ${error.message}`, 'error');
+        showResults('Error Details', { error: error.message });
+      }
+    };
+
+    window.testInsert = async function() {
+      const token = getToken();
+      if (!token) return;
+
+      if (!db) {
+        db = createClient({
+          url: 'libsql://manmath-mohanty-manmathx.aws-ap-south-1.turso.io',
+          authToken: token
+        });
+      }
+
+      showStatus('\ud83d\udd04 Inserting test data...', 'loading');
+
+      try {
+        await db.execute({
+          sql: `INSERT OR REPLACE INTO colleges (college_code, college_name, location, city, description, photo_url, website, established_year, affiliation) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          args: ['TEST001', 'Test College', 'Test Location', 'Test City', 'This is a test college', 'https://example.com/photo.jpg', 'https://example.com', 2000, 'Test Affiliation']
+        });
+        showStatus('\u2705 Test data inserted successfully!', 'success');
+      } catch (error) {
+        showStatus(`\u274c Insert failed: ${error.message}`, 'error');
+        showResults('Error Details', { error: error.message });
+      }
+    };
+
+    window.testQuery = async function() {
+      const token = getToken();
+      if (!token) return;
+
+      if (!db) {
+        db = createClient({
+          url: 'libsql://manmath-mohanty-manmathx.aws-ap-south-1.turso.io',
+          authToken: token
+        });
+      }
+
+      showStatus('\ud83d\udd04 Querying data...', 'loading');
+
+      try {
+        const result = await db.execute('SELECT * FROM colleges LIMIT 5');
+        showStatus(`\u2705 Query successful! Found ${result.rows.length} colleges`, 'success');
+        showResults('Query Results', result.rows);
+      } catch (error) {
+        showStatus(`\u274c Query failed: ${error.message}`, 'error');
+        showResults('Error Details', { error: error.message });
+      }
+    };
+
+    window.runAllTests = async function() {
+      document.getElementById('results').innerHTML = '';
+      await testConnection();
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      await testTableCreation();
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      await testInsert();
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      await testQuery();
+    };
+  </script>
+</body>
+</html>

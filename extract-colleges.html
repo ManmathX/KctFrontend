@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>College Data Extractor</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; max-width: 1200px; margin: 0 auto; }
+    h1 { color: #6366f1; }
+    button { padding: 10px 20px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; margin: 10px 5px; }
+    button:hover { background: #4f46e5; }
+    textarea { width: 100%; min-height: 400px; font-family: monospace; font-size: 12px; padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+    .info { background: #f0f9ff; padding: 15px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #6366f1; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #f3f4f6; }
+  </style>
+</head>
+<body>
+  <h1>\ud83c\udfdb\ufe0f College Data Extractor</h1>
+  
+  <div class="info">
+    <strong>Instructions:</strong>
+    <ol>
+      <li>Click "Extract Colleges" to see all unique colleges from your data</li>
+      <li>Copy the JSON data and use it in the admin panel to bulk import</li>
+      <li>Or download as CSV to edit in Excel before importing</li>
+    </ol>
+  </div>
+
+  <div>
+    <button onclick="extractColleges()">Extract Colleges</button>
+    <button onclick="downloadJSON()">Download JSON</button>
+    <button onclick="downloadCSV()">Download CSV</button>
+    <button onclick="copyToClipboard()">Copy to Clipboard</button>
+  </div>
+
+  <div id="stats" style="margin: 20px 0; font-weight: bold;"></div>
+
+  <div id="tableContainer"></div>
+
+  <h3>JSON Output:</h3>
+  <textarea id="output" readonly></textarea>
+
+  <script type="module">
+    import DATA from './src/data.json' assert { type: 'json' };
+    
+    let colleges = [];
+
+    window.extractColleges = function() {
+      const collegesMap = new Map();
+      
+      DATA.rows.forEach(row => {
+        const collegeCode = row[0];
+        const collegeName = row[1];
+        const city = row[3];
+        
+        if (!collegesMap.has(collegeCode)) {
+          collegesMap.set(collegeCode, {
+            college_code: collegeCode,
+            college_name: collegeName,
+            location: city,
+            city: city,
+            description: '',
+            photo_url: '',
+            website: '',
+            established_year: null,
+            affiliation: ''
+          });
+        }
+      });
+      
+      colleges = Array.from(collegesMap.values());
+      
+      document.getElementById('output').value = JSON.stringify(colleges, null, 2);
+      document.getElementById('stats').textContent = `Found ${colleges.length} unique colleges`;
+      
+      // Create table
+      let tableHTML = '<table><thead><tr><th>Code</th><th>College Name</th><th>City</th></tr></thead><tbody>';
+      colleges.forEach(c => {
+        tableHTML += `<tr><td>${c.college_code}</td><td>${c.college_name}</td><td>${c.city}</td></tr>`;
+      });
+      tableHTML += '</tbody></table>';
+      document.getElementById('tableContainer').innerHTML = tableHTML;
+    };
+
+    window.downloadJSON = function() {
+      if (colleges.length === 0) {
+        alert('Please extract colleges first');
+        return;
+      }
+      const blob = new Blob([JSON.stringify(colleges, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'colleges.json';
+      a.click();
+    };
+
+    window.downloadCSV = function() {
+      if (colleges.length === 0) {
+        alert('Please extract colleges first');
+        return;
+      }
+      let csv = 'College Code,College Name,Location,City,Description,Photo URL,Website,Established Year,Affiliation\n';
+      colleges.forEach(c => {
+        csv += `"${c.college_code}","${c.college_name}","${c.location}","${c.city}","${c.description}","${c.photo_url}","${c.website}","${c.established_year || ''}","${c.affiliation}"\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'colleges.csv';
+      a.click();
+    };
+
+    window.copyToClipboard = function() {
+      const output = document.getElementById('output');
+      output.select();
+      document.execCommand('copy');
+      alert('Copied to clipboard!');
+    };
+  </script>
+</body>
+</html>

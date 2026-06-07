@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KCET College Admin</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; padding: 20px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { color: #6366f1; margin-bottom: 30px; }
+    .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; }
+    .btn-primary { background: #6366f1; color: white; }
+    .btn-danger { background: #ef4444; color: white; }
+    .btn-secondary { background: #64748b; color: white; }
+    .card { background: white; padding: 24px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .form-group { margin-bottom: 16px; }
+    label { display: block; margin-bottom: 6px; font-weight: 500; color: #333; }
+    input, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+    textarea { min-height: 100px; resize: vertical; }
+    .college-list { display: grid; gap: 16px; }
+    .college-item { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); display: flex; gap: 20px; align-items: start; }
+    .college-img { width: 150px; height: 100px; object-fit: cover; border-radius: 6px; background: #f0f0f0; }
+    .college-info { flex: 1; }
+    .college-actions { display: flex; gap: 8px; }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+    .modal.active { display: flex; align-items: center; justify-content: center; }
+    .modal-content { background: white; padding: 32px; border-radius: 12px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎓 KCET College Admin</h1>
+      <button class="btn btn-primary" onclick="openAddModal()">+ Add College</button>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-bottom: 20px;">Colleges</h2>
+      <div id="collegeList" class="college-list"></div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Modal -->
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <h2 id="modalTitle">Add College</h2>
+      <form id="collegeForm" style="margin-top: 20px;">
+        <div class="form-group">
+          <label>College Code *</label>
+          <input type="text" id="college_code" required>
+        </div>
+        <div class="form-group">
+          <label>College Name *</label>
+          <input type="text" id="college_name" required>
+        </div>
+        <div class="form-group">
+          <label>Location *</label>
+          <input type="text" id="location" required>
+        </div>
+        <div class="form-group">
+          <label>City</label>
+          <input type="text" id="city">
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="description"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Photo URL</label>
+          <input type="url" id="photo_url" placeholder="https://example.com/image.jpg">
+        </div>
+        <div class="form-group">
+          <label>Website</label>
+          <input type="url" id="website" placeholder="https://college.edu">
+        </div>
+        <div class="form-group">
+          <label>Established Year</label>
+          <input type="number" id="established_year" min="1900" max="2025">
+        </div>
+        <div class="form-group">
+          <label>Affiliation</label>
+          <input type="text" id="affiliation" placeholder="e.g., VTU, Autonomous">
+        </div>
+        <div style="display: flex; gap: 12px; margin-top: 24px;">
+          <button type="submit" class="btn btn-primary">Save</button>
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@libsql/client@0.5.6';
+
+    const AUTH_TOKEN = prompt('Enter Turso Auth Token:');
+    if (!AUTH_TOKEN) {
+      alert('Auth token required!');
+      throw new Error('No auth token');
+    }
+
+    const db = createClient({
+      url: 'libsql://manmath-mohanty-manmathx.aws-ap-south-1.turso.io',
+      authToken: AUTH_TOKEN
+    });
+
+    let editingCode = null;
+
+    window.openAddModal = function() {
+      editingCode = null;
+      document.getElementById('modalTitle').textContent = 'Add College';
+      document.getElementById('collegeForm').reset();
+      document.getElementById('college_code').disabled = false;
+      document.getElementById('modal').classList.add('active');
+    };
+
+    window.openEditModal = async function(code) {
+      editingCode = code;
+      document.getElementById('modalTitle').textContent = 'Edit College';
+      const result = await db.execute({ sql: 'SELECT * FROM colleges WHERE college_code = ?', args: [code] });
+      const college = result.rows[0];
+      
+      document.getElementById('college_code').value = college.college_code;
+      document.getElementById('college_code').disabled = true;
+      document.getElementById('college_name').value = college.college_name || '';
+      document.getElementById('location').value = college.location || '';
+      document.getElementById('city').value = college.city || '';
+      document.getElementById('description').value = college.description || '';
+      document.getElementById('photo_url').value = college.photo_url || '';
+      document.getElementById('website').value = college.website || '';
+      document.getElementById('established_year').value = college.established_year || '';
+      document.getElementById('affiliation').value = college.affiliation || '';
+      
+      document.getElementById('modal').classList.add('active');
+    };
+
+    window.closeModal = function() {
+      document.getElementById('modal').classList.remove('active');
+    };
+
+    window.deleteCollege = async function(code) {
+      if (!confirm('Delete this college?')) return;
+      await db.execute({ sql: 'DELETE FROM colleges WHERE college_code = ?', args: [code] });
+      loadColleges();
+    };
+
+    document.getElementById('collegeForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = {
+        college_code: document.getElementById('college_code').value,
+        college_name: document.getElementById('college_name').value,
+        location: document.getElementById('location').value,
+        city: document.getElementById('city').value,
+        description: document.getElementById('description').value,
+        photo_url: document.getElementById('photo_url').value,
+        website: document.getElementById('website').value,
+        established_year: document.getElementById('established_year').value || null,
+        affiliation: document.getElementById('affiliation').value
+      };
+
+      if (editingCode) {
+        await db.execute({
+          sql: `UPDATE colleges SET college_name=?, location=?, city=?, description=?, photo_url=?, website=?, established_year=?, affiliation=? WHERE college_code=?`,
+          args: [data.college_name, data.location, data.city, data.description, data.photo_url, data.website, data.established_year, data.affiliation, editingCode]
+        });
+      } else {
+        await db.execute({
+          sql: `INSERT INTO colleges (college_code, college_name, location, city, description, photo_url, website, established_year, affiliation) VALUES (?,?,?,?,?,?,?,?,?)`,
+          args: [data.college_code, data.college_name, data.location, data.city, data.description, data.photo_url, data.website, data.established_year, data.affiliation]
+        });
+      }
+
+      closeModal();
+      loadColleges();
+    });
+
+    async function loadColleges() {
+      const result = await db.execute('SELECT * FROM colleges ORDER BY college_name');
+      const list = document.getElementById('collegeList');
+      list.innerHTML = result.rows.map(c => `
+        <div class="college-item">
+          ${c.photo_url ? `<img src="${c.photo_url}" class="college-img" alt="${c.college_name}">` : '<div class="college-img"></div>'}
+          <div class="college-info">
+            <h3>${c.college_name}</h3>
+            <p style="color: #666; margin: 4px 0;">${c.location}${c.city ? ', ' + c.city : ''}</p>
+            <p style="color: #999; font-size: 13px;">Code: ${c.college_code}</p>
+          </div>
+          <div class="college-actions">
+            <button class="btn btn-secondary" onclick="openEditModal('${c.college_code}')">Edit</button>
+            <button class="btn btn-danger" onclick="deleteCollege('${c.college_code}')">Delete</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Initialize DB and load colleges
+    (async () => {
+      try {
+        await db.execute(`
+          CREATE TABLE IF NOT EXISTS colleges (
+            college_code TEXT PRIMARY KEY,
+            college_name TEXT NOT NULL,
+            location TEXT,
+            city TEXT,
+            description TEXT,
+            photo_url TEXT,
+            website TEXT,
+            established_year INTEGER,
+            affiliation TEXT
+          )
+        `);
+        loadColleges();
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Database error: ' + error.message);
+      }
+    })();
+  </script>
+</body>
+</html>
